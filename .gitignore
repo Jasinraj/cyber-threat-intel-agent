@@ -1,0 +1,30 @@
+# Virtual environment
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# HuggingFace model cache
+.cache/
+
+# Database and outputs
+outputs/threats.db
+outputs/*.csv
+
+# Raw data (too large for GitHub)
+data/raw/
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Environment variables
+.env
+*.env

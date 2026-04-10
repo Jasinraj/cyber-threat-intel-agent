@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cyber Threat Intelligence Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #1a1f2e;
+      border-bottom: 1px solid #2d3748;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    header span {
+      font-size: 12px;
+      background: #22c55e22;
+      color: #22c55e;
+      border: 1px solid #22c55e44;
+      padding: 2px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── Layout ── */
+    main { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── Stat cards ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .stat-card .label {
+      font-size: 12px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .stat-card.red   .value { color: #f87171; }
+    .stat-card.amber .value { color: #fbbf24; }
+    .stat-card.blue  .value { color: #60a5fa; }
+    .stat-card.green .value { color: #34d399; }
+
+    /* ── Charts row ── */
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .chart-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .chart-card h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .chart-card canvas { max-height: 220px; }
+
+    /* ── Filters ── */
+    .filters {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .filters input, .filters select {
+      background: #0f1117;
+      border: 1px solid #2d3748;
+      color: #e2e8f0;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+    .filters input { flex: 1; min-width: 200px; }
+    .filters input:focus, .filters select:focus {
+      border-color: #60a5fa;
+    }
+    .filters label {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* ── Table ── */
+    .table-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .table-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #2d3748;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .table-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    #record-count {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      background: #0f1117;
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #2d3748;
+    }
+    tbody tr {
+      border-bottom: 1px solid #1e2535;
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: #1e2535; }
+    tbody td {
+      padding: 10px 16px;
+      color: #cbd5e1;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .id-cell {
+      font-family: monospace;
+      font-size: 12px;
+      color: #60a5fa;
+    }
+
+    /* ── Risk badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-Critical { background:#f8717122; color:#f87171; border:1px solid #f8717144; }
+    .badge-High     { background:#fbbf2422; color:#fbbf24; border:1px solid #fbbf2444; }
+    .badge-Medium   { background:#60a5fa22; color:#60a5fa; border:1px solid #60a5fa44; }
+    .badge-Low      { background:#34d39922; color:#34d399; border:1px solid #34d39944; }
+
+    /* ── Type badges ── */
+    .type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      background: #2d3748;
+      color: #94a3b8;
+    }
+
+    /* ── Loading ── */
+    #loading {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Cyber Threat Intelligence Dashboard</h1>
+  <span>Live</span>
+</header>
+
+<main>
+
+  <!-- Stat cards -->
+  <div class="stats">
+    <div class="stat-card blue">
+      <div class="label">Total Threats</div>
+      <div class="value" id="stat-total">—</div>
+    </div>
+    <div class="stat-card red">
+      <div class="label">Critical</div>
+      <div class="value" id="stat-critical">—</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="label">Avg CVSS Score</div>
+      <div class="value" id="stat-cvss">—</div>
+    </div>
+    <div class="stat-card green">
+      <div class="label">Sources Active</div>
+      <div class="value" id="stat-sources">—</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts">
+    <div class="chart-card">
+      <h2>Risk Level Distribution</h2>
+      <canvas id="riskChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h2>Threat Types</h2>
+      <canvas id="typeChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <input type="text" id="search"
+           placeholder="Search by CVE ID or keyword..."
+           oninput="applyFilters()"/>
+    <label>Risk:
+      <select id="filter-risk" onchange="applyFilters()">
+        <option>All</option>
+        <option>Critical</option>
+        <option>High</option>
+        <option>Medium</option>
+        <option>Low</option>
+      </select>
+    </label>
+    <label>Source:
+      <select id="filter-source" onchange="applyFilters()">
+        <option>All</option>
+        <option>NVD</option>
+        <option>CISA-KEV</option>
+        <option>BleepingComputer</option>
+        <option>TheHackerNews</option>
+        <option>SecurityWeek</option>
+        <option>KrebsOnSecurity</option>
+      </select>
+    </label>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <h2>Threat Intelligence Feed</h2>
+      <span id="record-count">Loading...</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Risk</th>
+            <th>CVSS</th>
+            <th>Source</th>
+            <th>Published</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody id="threat-table">
+          <tr><td colspan="7" id="loading">Loading threats...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ── Load stats + charts ──────────────────────────────────────────────────
+  async function loadStats() {
+    const res  = await fetch("/api/stats");
+    const data = await res.json();
+
+    document.getElementById("stat-total").textContent    = data.total;
+    document.getElementById("stat-critical").textContent = data.critical_count;
+    document.getElementById("stat-cvss").textContent     = data.avg_cvss ?? "N/A";
+    document.getElementById("stat-sources").textContent  = data.sources.length;
+
+    // Risk chart (doughnut)
+    const riskColors = {
+      Critical: "#f87171",
+      High:     "#fbbf24",
+      Medium:   "#60a5fa",
+      Low:      "#34d399",
+      Unknown:  "#64748b",
+    };
+    new Chart(document.getElementById("riskChart"), {
+      type: "doughnut",
+      data: {
+        labels: data.risk_distribution.map(r => r.risk_level),
+        datasets: [{
+          data  : data.risk_distribution.map(r => r.count),
+          backgroundColor: data.risk_distribution.map(
+            r => riskColors[r.risk_level] ?? "#64748b"
+          ),
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        plugins: {
+          legend: { labels: { color: "#94a3b8", font: { size: 12 } } }
+        }
+      },
+    });
+
+    // Threat type chart (horizontal bar)
+    new Chart(document.getElementById("typeChart"), {
+      type: "bar",
+      data: {
+        labels: data.threat_types.map(t => t.threat_type),
+        datasets: [{
+          label: "Count",
+          data : data.threat_types.map(t => t.count),
+          backgroundColor: "#60a5fa88",
+          borderColor    : "#60a5fa",
+          borderWidth    : 1,
+          borderRadius   : 4,
+        }],
+      },
+      options: {
+        indexAxis: "y",
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#64748b" }, grid: { color: "#1e2535" } },
+          y: { ticks: { color: "#94a3b8" }, grid: { color: "#1e2535" } },
+        },
+      },
+    });
+  }
+
+  // ── Load threat table ────────────────────────────────────────────────────
+  async function loadThreats(risk="All", source="All", search="") {
+    const params = new URLSearchParams({ risk, source, limit: 200 });
+    if (search) params.append("search", search);
+
+    const res  = await fetch(`/api/threats?${params}`);
+    const data = await res.json();
+
+    document.getElementById("record-count")
+      .textContent = `${data.count} records`;
+
+    const tbody = document.getElementById("threat-table");
+
+    if (data.threats.length === 0) {
+      tbody.innerHTML =
+        `<tr><td colspan="7" style="text-align:center;
+         padding:40px;color:#64748b">No threats found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.threats.map(t => {
+      const risk    = t.risk_level   ?? "Unknown";
+      const type    = t.threat_type  ?? "Unknown";
+      const cvss    = t.cvss_score   != null ? t.cvss_score : "N/A";
+      const pub     = t.published
+                      ? t.published.slice(0, 10)
+                      : "N/A";
+      const desc    = (t.description ?? "").slice(0, 80) + "...";
+      return `
+        <tr>
+          <td class="id-cell">${t.id ?? ""}</td>
+          <td><span class="type-badge">${type}</span></td>
+          <td><span class="badge badge-${risk}">${risk}</span></td>
+          <td>${cvss}</td>
+          <td>${t.source ?? ""}</td>
+          <td>${pub}</td>
+          <td title="${(t.description ?? "").replace(/"/g, "'")}">${desc}</td>
+        </tr>`;
+    }).join("");
+  }
+
+  // ── Filter handler ───────────────────────────────────────────────────────
+  function applyFilters() {
+    const risk   = document.getElementById("filter-risk").value;
+    const source = document.getElementById("filter-source").value;
+    const search = document.getElementById("search").value.trim();
+    loadThreats(risk, source, search);
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  loadStats();
+  loadThreats();
+</script>
+</body>
+</html>
